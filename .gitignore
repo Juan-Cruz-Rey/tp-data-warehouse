@@ -1,0 +1,39 @@
+# ============================================
+# Data Warehouse SEPA Precios - .gitignore
+# ============================================
+
+# Datos crudos y procesados (muy pesados para git)
+data/raw/
+data/processed/
+
+# Carpetas legacy (por si quedan)
+datos/
+datos_limpios/
+
+# Archivos temporales
+*.tmp
+*.bak
+ultima_salida.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
