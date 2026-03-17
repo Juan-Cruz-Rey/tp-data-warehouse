@@ -17,6 +17,7 @@ Trabajo práctico de Data Warehouse. Análisis de precios minoristas en supermer
 │   └── documentacion_proyecto.md
 │
 ├── scripts/               # Scripts ETL (Python)
+│   ├── 00_descargar_datos.py    # Descarga ZIPs desde Google Drive
 │   ├── 01_extraer_y_limpiar.py   # Extracción y limpieza de datos crudos
 │   └── 03_cargar_datos.py        # Carga de datos limpios al DW SQLite
 │
@@ -30,6 +31,7 @@ Trabajo práctico de Data Warehouse. Análisis de precios minoristas en supermer
 
 ## Pipeline ETL
 
+0. **Descargar datos** (`scripts/00_descargar_datos.py`): Descarga todos los ZIPs desde una carpeta pública de Google Drive a `data/raw/`.
 1. **Extraer y limpiar** (`scripts/01_extraer_y_limpiar.py`): Descomprime los ZIPs, parsea los CSVs, limpia datos y genera archivos consolidados en `data/processed/`.
 2. **Crear schema** (`sql/02_crear_schema.sql`): Crea las tablas del modelo estrella en SQLite.
 3. **Cargar datos** (`scripts/03_cargar_datos.py`): Carga los CSVs limpios en el Data Warehouse.
@@ -46,7 +48,8 @@ Trabajo práctico de Data Warehouse. Análisis de precios minoristas en supermer
 # 1. Instalar dependencias
 pip install -r requirements.txt
 
-# 2. Colocar los ZIPs descargados en data/raw/
+# 2. Descargar los ZIPs desde Google Drive
+python scripts/00_descargar_datos.py
 
 # 3. Extraer y limpiar datos
 python scripts/01_extraer_y_limpiar.py
