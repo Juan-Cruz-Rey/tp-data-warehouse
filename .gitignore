@@ -2,9 +2,10 @@
 # Data Warehouse SEPA Precios - .gitignore
 # ============================================
 
-# Datos crudos y procesados (muy pesados para git)
+# Datos crudos, procesados y base de datos (muy pesados para git)
 data/raw/
 data/processed/
+data/*.db
 
 # Carpetas legacy (por si quedan)
 datos/
