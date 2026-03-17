@@ -335,8 +335,8 @@ Cada registro de la fact table representa un producto en una sucursal en un dia 
 ### D8 - Horarios de atencion excluidos del modelo
 Los 7 campos de horarios de atencion (lunes a domingo) de sucursales.csv no se incluyen en el modelo porque no aportan al analisis de precios y aumentarian la complejidad sin beneficio analitico.
 
-### D9 - Tecnologia: MySQL
-Se elige MySQL como RDBMS segun requerimiento del TP. El modelo estrella se implementara como tablas InnoDB con foreign keys explicitas para integridad referencial.
+### D9 - Tecnologia: SQLite
+Se elige SQLite como RDBMS. El modelo estrella se implementa en un unico archivo `.db` con foreign keys explicitas (activadas via `PRAGMA foreign_keys = ON`). No requiere instalar servidor; Power BI se conecta al archivo via ODBC.
 
 ---
 
@@ -397,7 +397,7 @@ ETAPA 3: CARGA
          |-- Verificar que no haya precios negativos o nulos inesperados
 ```
 
-**Herramienta ETL sugerida:** Script Python con pandas para extraccion y transformacion, y mysql-connector o SQLAlchemy para la carga a MySQL.
+**Herramienta ETL sugerida:** Script Python con pandas para extraccion y transformacion, y sqlite3 (stdlib de Python) para la carga al archivo SQLite.
 
 ---
 

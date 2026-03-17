@@ -71,7 +71,7 @@ Disenar e implementar un proceso ETL completo que:
 
 1. Extraiga los datos de los archivos ZIP/CSV originales.
 2. Limpie, normalice y transforme los datos.
-3. Cargue los datos en un modelo estrella en MySQL.
+3. Cargue los datos en un modelo estrella en SQLite.
 4. Permita su explotacion analitica mediante Power BI.
 
 ---
@@ -412,9 +412,9 @@ Registros de precios por producto, sucursal y dia.
 
 | # | Decision | Justificacion |
 |---|----------|---------------|
-| D9 | **MySQL 8.x como RDBMS** | Se elige MySQL como motor de base de datos segun requerimiento del TP. El modelo estrella se implementa con tablas InnoDB con foreign keys explicitas para integridad referencial. Charset utf8mb4 para soporte completo de caracteres. |
+| D9 | **SQLite 3 como RDBMS** | Se elige SQLite como motor de base de datos. El modelo estrella se implementa en un unico archivo `.db` con foreign keys explicitas (activadas via `PRAGMA foreign_keys = ON`). No requiere instalar ni administrar un servidor de base de datos. Power BI se conecta al archivo via ODBC. |
 | - | **Python 3.x + pandas para ETL** | Python con pandas permite manipular grandes volumenes de datos tabulares de forma eficiente, con funciones nativas para limpieza, transformacion y deduplicacion. |
-| - | **Power BI para visualizacion** | Power BI se conecta directamente a MySQL y permite construir dashboards interactivos con capacidades OLAP (drill-down, slicing, dicing) sobre el modelo estrella. |
+| - | **Power BI para visualizacion** | Power BI se conecta al archivo SQLite via ODBC y permite construir dashboards interactivos con capacidades OLAP (drill-down, slicing, dicing) sobre el modelo estrella. |
 
 ### Decisiones de ETL
 
@@ -423,7 +423,7 @@ Registros de precios por producto, sucursal y dia.
 | D4 | **Normalizacion de unidades de medida** | El dataset presenta inconsistencias (GR/G/gr, LT/L/lt, UN/UD/un, CC/ML/ml). Se normalizan a minusculas y se unifican sinonimos para que las comparaciones de precio_referencia sean validas. |
 | D5 | **Normalizacion de codigos de provincia** | El dataset usa codigos ISO 3166-2 (AR-B, AR-C) con alguna inconsistencia. Se normalizan todos a codigo ISO estandar. |
 | - | **Deduplicacion por version SEPA** | Cuando un mismo comercio aparece en version sepa_1 y sepa_2 dentro del mismo ZIP diario, se conserva solo la version 2 (mas reciente). Si aparece en una sola version, se conserva. |
-| - | **Procesamiento por chunks** | Dado el volumen de datos (~53 millones de registros de productos), la carga a MySQL se realiza en lotes (chunks) para evitar desbordamiento de memoria y timeouts. |
+| - | **Procesamiento por chunks** | Dado el volumen de datos (~53 millones de registros de productos), la carga a SQLite se realiza en lotes (chunks) para evitar desbordamiento de memoria. |
 | - | **Limpieza de null bytes y metadata** | Los CSVs originales contienen caracteres nulos (\x00) y filas de metadata al final del archivo ("Ultima actualizacion...") que deben eliminarse antes del procesamiento. |
 
 ---
@@ -432,10 +432,10 @@ Registros de precios por producto, sucursal y dia.
 
 | Componente | Tecnologia | Version | Rol |
 |------------|-----------|---------|-----|
-| Base de datos | MySQL | 8.x | Almacenamiento del Data Warehouse (modelo estrella con InnoDB) |
+| Base de datos | SQLite | 3.x | Almacenamiento del Data Warehouse (modelo estrella en archivo .db) |
 | ETL - Extraccion/Limpieza | Python + pandas | 3.x | Lectura de ZIPs, parseo de CSVs, limpieza y normalizacion de datos |
-| ETL - Carga | Python + mysql-connector | 3.x | Insercion de datos transformados en las tablas del DW |
-| Visualizacion / OLAP | Power BI Desktop | - | Conexion a MySQL, construccion de dashboards interactivos, drill-down |
+| ETL - Carga | Python + sqlite3 (stdlib) | 3.x | Insercion de datos transformados en las tablas del DW |
+| Visualizacion / OLAP | Power BI Desktop | - | Conexion via ODBC a SQLite, construccion de dashboards interactivos, drill-down |
 | Control de versiones | Git | - | Versionado de scripts y documentacion |
 
 ### Diagrama de arquitectura
@@ -443,9 +443,9 @@ Registros de precios por producto, sucursal y dia.
 ```
 +-------------------+     +---------------------+     +------------------+     +-------------+
 |  Datos fuente     |     |  ETL (Python)       |     |  Data Warehouse  |     |  Power BI   |
-|  (ZIPs / CSVs)    | --> |  01_extraer_y       | --> |  MySQL 8.x       | --> |  Dashboards |
-|                   |     |    limpiar.py        |     |  (dw_sepa_       |     |  OLAP       |
-|  sepa_lunes.zip   |     |  03_cargar_datos.py  |     |   precios)       |     |             |
+|  (ZIPs / CSVs)    | --> |  01_extraer_y       | --> |  SQLite 3        | --> |  Dashboards |
+|                   |     |    limpiar.py        |     |  dw_sepa_precios |     |  OLAP       |
+|  sepa_lunes.zip   |     |  03_cargar_datos.py  |     |    .db           |     |  (via ODBC) |
 |  sepa_martes.zip  |     +---------------------+     +------------------+     +-------------+
 |  sepa_miercoles   |               |                         ^
 |    .zip           |               |                         |
@@ -485,11 +485,16 @@ Pasos:
 ### Etapa 2: Creacion del schema (`scripts/02_crear_schema.sql`)
 
 **Entrada:** Script DDL.
-**Salida:** Base de datos `dw_sepa_precios` con todas las tablas creadas.
+**Salida:** Archivo `data/dw_sepa_precios.db` con todas las tablas creadas.
+
+Ejecucion:
+```bash
+sqlite3 data/dw_sepa_precios.db < sql/02_crear_schema.sql
+```
 
 Pasos:
 
-1. Crear la base de datos `dw_sepa_precios` (charset utf8mb4).
+1. Activar foreign keys (`PRAGMA foreign_keys = ON`).
 2. Eliminar tablas existentes en orden inverso de dependencia (fact -> dims) para idempotencia.
 3. Crear las 8 tablas de dimensiones con claves surrogadas, claves unicas y constraints.
 4. Crear la tabla de hechos `fact_precios` con 8 FKs y las medidas.
@@ -499,8 +504,8 @@ El script es **idempotente**: puede ejecutarse multiples veces sin error.
 
 ### Etapa 3: Carga de datos (`scripts/03_cargar_datos.py`)
 
-**Entrada:** CSVs limpios de `datos_limpios/` + schema MySQL creado.
-**Salida:** Tablas del DW pobladas.
+**Entrada:** CSVs limpios de `data/processed/` + schema SQLite creado.
+**Salida:** Tablas del DW pobladas en `data/dw_sepa_precios.db`.
 
 Pasos:
 
@@ -518,11 +523,12 @@ Pasos:
 
 ### Etapa 4: Conexion desde Power BI
 
-1. Conectar Power BI Desktop a MySQL (`dw_sepa_precios`).
-2. Importar las 9 tablas (8 dimensiones + 1 fact).
-3. Verificar que las relaciones estrella se detecten automaticamente (o crearlas manualmente).
-4. Construir medidas DAX para las medidas derivadas (descuento, porcentaje, etc.).
-5. Crear dashboards con visualizaciones que respondan las preguntas de negocio.
+1. Instalar el driver ODBC de SQLite (http://www.ch-werner.de/sqliteodbc/).
+2. En Power BI Desktop: "Obtener datos" → "ODBC" → configurar DSN apuntando al archivo `data/dw_sepa_precios.db`.
+3. Importar las 9 tablas (8 dimensiones + 1 fact).
+4. Verificar que las relaciones estrella se detecten automaticamente (o crearlas manualmente).
+5. Construir medidas DAX para las medidas derivadas (descuento, porcentaje, etc.).
+6. Crear dashboards con visualizaciones que respondan las preguntas de negocio.
 
 ---
 

@@ -11,7 +11,7 @@ Había que hacer primero una base de datos real que alimente al Power BI
 El flujo correcto es:
 
 Elegís un dataset (ellos usaron uno de canciones de Spotify)
-Creás las tablas en MySQL siguiendo el esquema estrella
+Creás las tablas en SQLite siguiendo el esquema estrella
 Cargás los datos con scripts de inserts desde el CSV
 Desde Power BI usás "Conectar" para conectarlo a esa base de datos
 Power BI te arma casi solo el diagrama estrella porque ya tiene las referencias
@@ -21,4 +21,4 @@ Sobre la dificultad:
 El primer TP es el más jodido, el segundo es pan comido
 El profe no es muy exigente con la calidad, así que no te estreses de más
 
-El resumen en una línea: arrancá por la base de datos en MySQL, todo lo demás es fácil.
+El resumen en una línea: arrancá por la base de datos en SQLite, todo lo demás es fácil.

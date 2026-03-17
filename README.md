@@ -18,10 +18,10 @@ Trabajo práctico de Data Warehouse. Análisis de precios minoristas en supermer
 │
 ├── scripts/               # Scripts ETL (Python)
 │   ├── 01_extraer_y_limpiar.py   # Extracción y limpieza de datos crudos
-│   └── 03_cargar_datos.py        # Carga de datos limpios al DW MySQL
+│   └── 03_cargar_datos.py        # Carga de datos limpios al DW SQLite
 │
 ├── sql/                   # Definición del esquema del Data Warehouse
-│   └── 02_crear_schema.sql       # DDL modelo estrella (MySQL)
+│   └── 02_crear_schema.sql       # DDL modelo estrella (SQLite)
 │
 ├── notebooks/             # Jupyter notebooks para exploración y análisis
 ├── requirements.txt       # Dependencias Python
@@ -31,13 +31,13 @@ Trabajo práctico de Data Warehouse. Análisis de precios minoristas en supermer
 ## Pipeline ETL
 
 1. **Extraer y limpiar** (`scripts/01_extraer_y_limpiar.py`): Descomprime los ZIPs, parsea los CSVs, limpia datos y genera archivos consolidados en `data/processed/`.
-2. **Crear schema** (`sql/02_crear_schema.sql`): Crea la base de datos y tablas del modelo estrella en MySQL.
+2. **Crear schema** (`sql/02_crear_schema.sql`): Crea las tablas del modelo estrella en SQLite.
 3. **Cargar datos** (`scripts/03_cargar_datos.py`): Carga los CSVs limpios en el Data Warehouse.
 
 ## Requisitos
 
 - Python 3.10+
-- MySQL 8.0+
+- SQLite 3 (incluido en Python)
 - Dependencias: `pip install -r requirements.txt`
 
 ## Uso
@@ -51,8 +51,8 @@ pip install -r requirements.txt
 # 3. Extraer y limpiar datos
 python scripts/01_extraer_y_limpiar.py
 
-# 4. Crear schema en MySQL
-mysql -u root < sql/02_crear_schema.sql
+# 4. Crear schema en SQLite
+sqlite3 data/dw_sepa_precios.db < sql/02_crear_schema.sql
 
 # 5. Cargar datos al DW
 python scripts/03_cargar_datos.py
