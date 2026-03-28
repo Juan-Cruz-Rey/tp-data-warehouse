@@ -2,8 +2,9 @@
 
 ## 1. Contexto del Negocio
 
-**Organismo:** Secretaria de Comercio de Argentina (Ministerio de Produccion).
+**Organizacion:** Consultora ficticia de analisis comercial y precios.
 **Dataset:** SEPA Precios - Sistema Electronico de Publicidad de Precios Argentino.
+**Fuente:** Secretaria de Comercio de Argentina (Ministerio de Produccion).
 **Alcance:** Precios minoristas informados por cadenas de supermercados a nivel nacional.
 **Periodo de datos disponibles:** 4 dias (lunes 2026-03-09 a jueves 2026-03-12).
 
@@ -21,41 +22,36 @@
 
 | Campo | Tipo | Descripcion |
 |-------|------|-------------|
-| id_hecho | INT (PK, autoincremental) | Clave surrogada del hecho |
+| id_hecho | INT (PK, AUTOINCREMENT) | Clave primaria del hecho |
 | sk_producto | INT (FK) | Clave surrogada a dim_producto |
 | sk_comercio | INT (FK) | Clave surrogada a dim_comercio |
 | sk_sucursal | INT (FK) | Clave surrogada a dim_sucursal |
 | sk_ubicacion | INT (FK) | Clave surrogada a dim_ubicacion |
 | sk_tiempo | INT (FK) | Clave surrogada a dim_tiempo |
-| sk_tipo_sucursal | INT (FK) | Clave surrogada a dim_tipo_sucursal |
-| sk_unidad_medida | INT (FK) | Clave surrogada a dim_unidad_medida |
-| sk_promocion | INT (FK) | Clave surrogada a dim_promocion |
 | **precio_lista** | DECIMAL(12,2) | **MEDIDA 1** - Precio de lista del producto |
 | **precio_referencia** | DECIMAL(12,2) | **MEDIDA 2** - Precio de referencia (por unidad de medida estandar) |
 | **precio_promo** | DECIMAL(12,2) | **MEDIDA 3** - Precio promocional (NULL si no hay promocion) |
-| cantidad_presentacion | DECIMAL(10,3) | Cantidad de la presentacion del producto |
-| cantidad_referencia | DECIMAL(10,3) | Cantidad de referencia para el precio unitario |
+| tiene_promo | BOOLEAN | Indica si el producto tiene promocion activa |
 
-**Granularidad:** Un registro por cada combinacion unica de producto + sucursal + dia de relevamiento. Cada fila representa el precio informado de un producto especifico en una sucursal especifica en un dia determinado.
+**Granularidad:** Un registro por cada combinacion unica de producto x sucursal x dia de relevamiento. Cada fila representa el precio informado de un producto especifico en una sucursal especifica en un dia determinado.
 
 ---
 
-### Dimensiones (8 dimensiones, 4 jerarquicas)
+### Dimensiones (5 dimensiones, 4 jerarquicas)
 
 #### dim_producto -- JERARQUICA
 
 | Campo | Tipo | Descripcion |
 |-------|------|-------------|
 | sk_producto | INT (PK) | Clave surrogada |
-| id_producto_natural | VARCHAR(20) | Clave natural (id_producto del CSV) |
 | ean | VARCHAR(20) | Codigo de barras EAN |
 | descripcion | VARCHAR(200) | Descripcion completa del producto |
 | marca | VARCHAR(100) | Marca del producto |
 | categoria_inferida | VARCHAR(100) | Categoria extraida de la descripcion (nivel superior de jerarquia) |
 
-**Jerarquia:** categoria_inferida -> marca -> descripcion
+**Jerarquia:** Categoria -> Marca -> Producto
 
-> **Nota de diseno:** El dataset no provee una categoria explicita. Se debe inferir durante el ETL a partir de palabras clave en la descripcion (ej: "LECHE" -> Lacteos, "FIDEOS" -> Pastas, "CERVEZA" -> Bebidas Alcoholicas). Esto es una decision de diseno clave y se detalla en la seccion 5.
+> **Nota de diseno:** El dataset no provee una categoria explicita. Se debe inferir durante el ETL a partir de palabras clave en la descripcion (ej: "LECHE" -> Lacteos, "FIDEOS" -> Pastas, "CERVEZA" -> Bebidas Alcoholicas). Esto es una decision de diseno clave y se detalla en la seccion 6 (D2).
 
 ---
 
@@ -64,14 +60,10 @@
 | Campo | Tipo | Descripcion |
 |-------|------|-------------|
 | sk_comercio | INT (PK) | Clave surrogada |
-| id_comercio_natural | INT | Clave natural (id_comercio) |
-| id_bandera | INT | ID de la bandera comercial |
-| cuit | VARCHAR(15) | CUIT de la empresa |
 | razon_social | VARCHAR(200) | Razon social de la empresa |
 | bandera_nombre | VARCHAR(100) | Nombre de la bandera (ej: Supermercados DIA, COTO) |
-| bandera_url | VARCHAR(200) | URL de la bandera |
 
-**Jerarquia:** razon_social (empresa) -> bandera_nombre (cadena)
+**Jerarquia:** Empresa -> Cadena
 
 > Ejemplo real: una empresa puede operar multiples banderas (ej: Libertad SA opera "Hipermercado Libertad", "Mini Libertad" y "Petit Libertad").
 
@@ -82,18 +74,11 @@
 | Campo | Tipo | Descripcion |
 |-------|------|-------------|
 | sk_sucursal | INT (PK) | Clave surrogada |
-| id_sucursal_natural | INT | Clave natural compuesta: id_comercio + id_bandera + id_sucursal |
-| id_comercio | INT | Referencia al comercio |
-| id_bandera | INT | Referencia a la bandera |
-| id_sucursal | INT | ID de sucursal dentro del comercio |
 | nombre | VARCHAR(100) | Nombre de la sucursal |
-| calle | VARCHAR(100) | Calle de la sucursal |
-| numero | VARCHAR(20) | Numero de calle |
-| latitud | DECIMAL(10,6) | Latitud geografica |
-| longitud | DECIMAL(10,6) | Longitud geografica |
-| observaciones | VARCHAR(200) | Observaciones adicionales |
+| direccion | VARCHAR(200) | Direccion de la sucursal |
+| tipo_sucursal | VARCHAR(50) | Tipo de sucursal (Autoservicio, Supermercado, Hipermercado, Web) |
 
-> **Nota:** Los horarios de atencion por dia de semana no se incluyen en el modelo estrella porque no son relevantes para el analisis de precios. Si se necesitaran, se podrian agregar como atributos adicionales.
+> **Nota:** Los horarios de atencion por dia de semana no se incluyen en el modelo estrella porque no son relevantes para el analisis de precios (ver D8).
 
 ---
 
@@ -105,12 +90,10 @@
 | provincia_codigo | VARCHAR(5) | Codigo ISO de provincia (ej: AR-B) |
 | provincia_nombre | VARCHAR(50) | Nombre legible de la provincia (ej: Buenos Aires) |
 | localidad | VARCHAR(100) | Localidad |
-| barrio | VARCHAR(100) | Barrio |
-| codigo_postal | VARCHAR(10) | Codigo postal |
 
-**Jerarquia:** provincia_nombre -> localidad -> barrio -> codigo_postal
+**Jerarquia:** Provincia -> Localidad
 
-> Se normaliza el codigo ISO de provincia a nombre legible durante el ETL (ej: AR-B -> Buenos Aires, AR-C -> CABA).
+> Se normaliza el codigo ISO de provincia a nombre legible durante el ETL (ej: AR-B -> Buenos Aires, AR-C -> CABA). Ver D5.
 
 ---
 
@@ -123,50 +106,10 @@
 | anio | INT | Anio |
 | mes | INT | Mes (1-12) |
 | dia | INT | Dia del mes |
-| dia_semana | VARCHAR(15) | Nombre del dia (Lunes, Martes, etc.) |
-| numero_dia_semana | INT | Numero del dia (1=Lunes, 7=Domingo) |
-| semana_anio | INT | Numero de semana en el anio |
 
-**Jerarquia:** anio -> mes -> semana_anio -> fecha
+**Jerarquia:** Anio -> Mes -> Dia
 
 > Aunque el dataset actual cubre solo 4 dias, la dimension se disena para escalar a multiples semanas/meses de recoleccion futura.
-
----
-
-#### dim_tipo_sucursal (no jerarquica)
-
-| Campo | Tipo | Descripcion |
-|-------|------|-------------|
-| sk_tipo_sucursal | INT (PK) | Clave surrogada |
-| tipo_sucursal | VARCHAR(50) | Tipo normalizado: Autoservicio, Supermercado, Hipermercado, Web |
-
-> Se normaliza durante ETL: "supermercado" y "Supermercado" -> "Supermercado".
-
----
-
-#### dim_unidad_medida (no jerarquica)
-
-| Campo | Tipo | Descripcion |
-|-------|------|-------------|
-| sk_unidad_medida | INT (PK) | Clave surrogada |
-| unidad_presentacion | VARCHAR(10) | Unidad de la presentacion normalizada (gr, kg, lt, ml, un) |
-| unidad_referencia | VARCHAR(10) | Unidad de referencia normalizada |
-
-> Se normaliza durante ETL: "GR"/"G"/"gr" -> "gr", "LT"/"L"/"lt" -> "lt", "KG"/"kg" -> "kg", "ML"/"ml"/"CC" -> "ml", "UN"/"UD"/"un" -> "un".
-
----
-
-#### dim_promocion (no jerarquica)
-
-| Campo | Tipo | Descripcion |
-|-------|------|-------------|
-| sk_promocion | INT (PK) | Clave surrogada |
-| tiene_promo1 | BOOLEAN | Indica si tiene precio promocional 1 |
-| leyenda_promo1 | VARCHAR(500) | Texto de la promocion 1 |
-| tiene_promo2 | BOOLEAN | Indica si tiene precio promocional 2 |
-| leyenda_promo2 | VARCHAR(500) | Texto de la promocion 2 |
-
-> Permite filtrar rapidamente "productos con promocion" vs "sin promocion" y analizar el tipo de descuento.
 
 ---
 
@@ -181,24 +124,20 @@
 **Medidas derivadas calculables:**
 - `descuento_promo = precio_lista - precio_promo` (ahorro absoluto)
 - `pct_descuento = (precio_lista - precio_promo) / precio_lista * 100` (porcentaje de descuento)
-- `tiene_promocion = CASE WHEN precio_promo IS NOT NULL THEN 1 ELSE 0 END`
 
 ---
 
 ## 4. Resumen de Dimensiones
 
-| # | Dimension | Jerarquica | Niveles de jerarquia | Campos |
-|---|-----------|:----------:|---------------------|--------|
-| 1 | dim_producto | SI | categoria_inferida -> marca -> descripcion | 6 |
-| 2 | dim_comercio | SI | razon_social -> bandera_nombre | 7 |
-| 3 | dim_sucursal | NO | - | 11 |
-| 4 | dim_ubicacion | SI | provincia -> localidad -> barrio -> codigo_postal | 6 |
-| 5 | dim_tiempo | SI | anio -> mes -> semana -> fecha | 8 |
-| 6 | dim_tipo_sucursal | NO | - | 2 |
-| 7 | dim_unidad_medida | NO | - | 3 |
-| 8 | dim_promocion | NO | - | 5 |
+| Dimension | Jerarquica | Niveles de jerarquia |
+|-----------|:----------:|---------------------|
+| dim_producto | SI | Categoria -> Marca -> Producto |
+| dim_comercio | SI | Empresa -> Cadena |
+| dim_ubicacion | SI | Provincia -> Localidad |
+| dim_tiempo | SI | Anio -> Mes -> Dia |
+| dim_sucursal | NO | - |
 
-**Total: 8 dimensiones (4 jerarquicas).** Cumple con los requisitos: maximo 10 dimensiones, minimo 3 jerarquicas.
+**Total: 5 dimensiones (4 jerarquicas).** Cumple con los requisitos: maximo 10 dimensiones, minimo 3 jerarquicas.
 
 ---
 
@@ -206,27 +145,22 @@
 
 ### fact_precio
 
-| Campo destino | CSV origen | Columna origen | Transformacion |
-|---------------|-----------|----------------|----------------|
+| Campo destino | Archivo origen | Columna origen | Transformacion |
+|---------------|---------------|----------------|----------------|
 | sk_producto | productos.csv | id_producto | Lookup a dim_producto |
 | sk_comercio | productos.csv | id_comercio + id_bandera | Lookup a dim_comercio |
-| sk_sucursal | productos.csv | id_comercio + id_bandera + id_sucursal | Lookup a dim_sucursal |
-| sk_ubicacion | sucursales.csv | provincia + localidad + barrio + codigo_postal | Lookup a dim_ubicacion (join por sucursal) |
-| sk_tiempo | nombre del ZIP | Fecha extraida del nombre del directorio (ej: "2026-03-09/") | Lookup a dim_tiempo |
-| sk_tipo_sucursal | sucursales.csv | sucursales_tipo | Lookup a dim_tipo_sucursal (join por sucursal) |
-| sk_unidad_medida | productos.csv | unidad_medida_presentacion + unidad_medida_referencia | Lookup a dim_unidad_medida |
-| sk_promocion | productos.csv | precio_unitario_promo1, leyenda_promo1, promo2 | Lookup a dim_promocion |
+| sk_sucursal | productos.csv | id_sucursal | Lookup a dim_sucursal |
+| sk_ubicacion | sucursales.csv | provincia + localidad | Lookup a dim_ubicacion |
+| sk_tiempo | Nombre archivo | fecha | Parseo de la fecha del nombre del directorio |
 | precio_lista | productos.csv | productos_precio_lista | CAST a DECIMAL |
 | precio_referencia | productos.csv | productos_precio_referencia | CAST a DECIMAL |
 | precio_promo | productos.csv | productos_precio_unitario_promo1 | CAST a DECIMAL, NULL si vacio |
-| cantidad_presentacion | productos.csv | productos_cantidad_presentacion | CAST a DECIMAL |
-| cantidad_referencia | productos.csv | productos_cantidad_referencia | CAST a DECIMAL |
+| tiene_promo | productos.csv | precio_promo | CASE WHEN NOT NULL |
 
 ### dim_producto
 
 | Campo destino | CSV origen | Columna origen | Transformacion |
 |---------------|-----------|----------------|----------------|
-| id_producto_natural | productos.csv | id_producto | Directo |
 | ean | productos.csv | productos_ean | Directo |
 | descripcion | productos.csv | productos_descripcion | TRIM |
 | marca | productos.csv | productos_marca | TRIM, UPPER |
@@ -236,36 +170,24 @@
 
 | Campo destino | CSV origen | Columna origen | Transformacion |
 |---------------|-----------|----------------|----------------|
-| id_comercio_natural | comercio.csv | id_comercio | Directo |
-| id_bandera | comercio.csv | id_bandera | Directo |
-| cuit | comercio.csv | comercio_cuit | Directo |
 | razon_social | comercio.csv | comercio_razon_social | TRIM |
 | bandera_nombre | comercio.csv | comercio_bandera_nombre | TRIM |
-| bandera_url | comercio.csv | comercio_bandera_url | TRIM |
 
 ### dim_sucursal
 
 | Campo destino | CSV origen | Columna origen | Transformacion |
 |---------------|-----------|----------------|----------------|
-| id_comercio | sucursales.csv | id_comercio | Directo |
-| id_bandera | sucursales.csv | id_bandera | Directo |
-| id_sucursal | sucursales.csv | id_sucursal | Directo |
 | nombre | sucursales.csv | sucursales_nombre | TRIM |
-| calle | sucursales.csv | sucursales_calle | TRIM |
-| numero | sucursales.csv | sucursales_numero | TRIM |
-| latitud | sucursales.csv | sucursales_latitud | CAST a DECIMAL |
-| longitud | sucursales.csv | sucursales_longitud | CAST a DECIMAL |
-| observaciones | sucursales.csv | sucursales_observaciones | TRIM |
+| direccion | sucursales.csv | sucursales_calle + sucursales_numero | Concatenacion, TRIM |
+| tipo_sucursal | sucursales.csv | sucursales_tipo | TRIM, normalizacion de capitalizacion |
 
 ### dim_ubicacion
 
 | Campo destino | CSV origen | Columna origen | Transformacion |
 |---------------|-----------|----------------|----------------|
-| provincia_codigo | sucursales.csv | sucursales_provincia | TRIM |
+| provincia_codigo | sucursales.csv | sucursales_provincia | TRIM (conservar codigo ISO original, ej: AR-B) |
 | provincia_nombre | sucursales.csv | sucursales_provincia | Mapeo ISO -> nombre (AR-B -> Buenos Aires, etc.) |
 | localidad | sucursales.csv | sucursales_localidad | TRIM |
-| barrio | sucursales.csv | sucursales_barrio | TRIM |
-| codigo_postal | sucursales.csv | sucursales_codigo_postal | TRIM |
 
 ### dim_tiempo
 
@@ -275,31 +197,6 @@
 | anio | fecha | YEAR(fecha) |
 | mes | fecha | MONTH(fecha) |
 | dia | fecha | DAY(fecha) |
-| dia_semana | fecha | DAYNAME(fecha) |
-| numero_dia_semana | fecha | DAYOFWEEK(fecha) |
-| semana_anio | fecha | WEEKOFYEAR(fecha) |
-
-### dim_tipo_sucursal
-
-| Campo destino | CSV origen | Columna origen | Transformacion |
-|---------------|-----------|----------------|----------------|
-| tipo_sucursal | sucursales.csv | sucursales_tipo | TRIM, normalizacion de capitalizacion |
-
-### dim_unidad_medida
-
-| Campo destino | CSV origen | Columna origen | Transformacion |
-|---------------|-----------|----------------|----------------|
-| unidad_presentacion | productos.csv | productos_unidad_medida_presentacion | LOWER, mapeo de sinonimos |
-| unidad_referencia | productos.csv | productos_unidad_medida_referencia | LOWER, mapeo de sinonimos |
-
-### dim_promocion
-
-| Campo destino | CSV origen | Columna origen | Transformacion |
-|---------------|-----------|----------------|----------------|
-| tiene_promo1 | productos.csv | productos_precio_unitario_promo1 | TRUE si no vacio, FALSE si vacio |
-| leyenda_promo1 | productos.csv | productos_leyenda_promo1 | TRIM |
-| tiene_promo2 | productos.csv | productos_precio_unitario_promo2 | TRUE si no vacio, FALSE si vacio |
-| leyenda_promo2 | productos.csv | productos_leyenda_promo2 | TRIM |
 
 ---
 
@@ -318,16 +215,16 @@ El dataset no incluye una categoria explicita de producto. Se decide inferirla a
 Esto es imperfecto pero necesario para habilitar drill-down por categoria, que es central al analisis propuesto. Se puede refinar iterativamente.
 
 ### D3 - Separacion de dim_ubicacion y dim_sucursal
-Se separa la ubicacion geografica de la sucursal en dos dimensiones para evitar redundancia y permitir analisis geograficos independientes. Muchas sucursales distintas comparten la misma ubicacion (provincia + localidad + barrio). Esto es especialmente util para el drill-down geografico: provincia -> localidad -> barrio.
+Se separa la ubicacion geografica de la sucursal en dos dimensiones para evitar redundancia y permitir analisis geograficos independientes. Muchas sucursales distintas comparten la misma ubicacion (provincia + localidad). Esto es especialmente util para el drill-down geografico: Provincia -> Localidad.
 
 ### D4 - Normalizacion de unidades de medida
 El dataset presenta inconsistencias en las unidades (GR/G/gr, LT/L/lt, UN/UD/un, CC/ML/ml). Se normalizan a minusculas y se unifican sinonimos: G/GR/gr -> "gr", L/LT/lt -> "lt", CC/ML/ml -> "ml", UN/UD/un -> "un". Esto es critico para que las comparaciones de precio_referencia sean validas.
 
-### D5 - Normalizacion de codigos de provincia
-El dataset usa codigos ISO 3166-2 (AR-B, AR-C, etc.) con alguna inconsistencia ("Buenos Aires" en texto libre). Se normalizan todos a codigo ISO y se agrega un atributo con el nombre legible de la provincia.
+### D5 - Normalizacion de codigos de provincia (ISO -> nombre)
+El dataset usa codigos ISO 3166-2 (AR-B, AR-C, etc.) con alguna inconsistencia ("Buenos Aires" en texto libre). Se normalizan todos a nombre legible de la provincia.
 
 ### D6 - precio_promo como medida nullable
-Se usa un unico campo precio_promo que toma el valor de `productos_precio_unitario_promo1` (la promo principal). Se decide no incluir promo2 como medida separada porque en los datos observados promo2 esta practicamente siempre vacia. La informacion de promo2 se preserva en dim_promocion para consulta, pero no como medida en la fact table.
+Se usa un unico campo precio_promo que toma el valor de `productos_precio_unitario_promo1` (la promo principal). Cuando no hay promocion, el campo queda NULL. El flag `tiene_promo` en la fact table permite filtrar rapidamente productos con o sin promocion.
 
 ### D7 - Granularidad: producto x sucursal x dia
 Cada registro de la fact table representa un producto en una sucursal en un dia especifico. Esta es la maxima granularidad posible con los datos disponibles y permite cualquier tipo de roll-up posterior.
@@ -367,7 +264,7 @@ ETAPA 2: TRANSFORMACION
    |
    |-- 2.3 Enriquecimiento:
    |     |-- Inferir categoria de producto a partir de descripcion
-   |     |-- Calcular flags de promocion (tiene_promo1, tiene_promo2)
+   |     |-- Calcular flag tiene_promo (NOT NULL sobre precio_promo)
    |     |-- Generar dimension de tiempo a partir de las fechas extraidas
    |
    |-- 2.4 Deduplicacion:
@@ -377,14 +274,11 @@ ETAPA 2: TRANSFORMACION
 ETAPA 3: CARGA
    |
    |-- 3.1 Cargar dimensiones (orden no importa, son independientes):
-   |     |-- INSERT INTO dim_producto (dedup por id_producto + ean)
-   |     |-- INSERT INTO dim_comercio (dedup por id_comercio + id_bandera)
-   |     |-- INSERT INTO dim_sucursal (dedup por id_comercio + id_bandera + id_sucursal)
-   |     |-- INSERT INTO dim_ubicacion (dedup por provincia + localidad + barrio + cp)
+   |     |-- INSERT INTO dim_producto (dedup por ean)
+   |     |-- INSERT INTO dim_comercio (dedup por razon_social + bandera_nombre)
+   |     |-- INSERT INTO dim_sucursal (dedup por nombre + direccion)
+   |     |-- INSERT INTO dim_ubicacion (dedup por provincia + localidad)
    |     |-- INSERT INTO dim_tiempo (generar para rango de fechas)
-   |     |-- INSERT INTO dim_tipo_sucursal (dedup por tipo normalizado)
-   |     |-- INSERT INTO dim_unidad_medida (dedup por par de unidades)
-   |     |-- INSERT INTO dim_promocion (dedup por combinacion de flags y leyendas)
    |
    |-- 3.2 Cargar tabla de hechos:
    |     |-- Para cada fila de productos.csv:
@@ -397,63 +291,51 @@ ETAPA 3: CARGA
          |-- Verificar que no haya precios negativos o nulos inesperados
 ```
 
-**Herramienta ETL sugerida:** Script Python con pandas para extraccion y transformacion, y sqlite3 (stdlib de Python) para la carga al archivo SQLite.
+**Herramienta ETL:** Script Python con pandas para extraccion y transformacion, y sqlite3 (stdlib de Python) para la carga al archivo SQLite.
 
 ---
 
-## 8. Diagrama del Modelo Estrella (esquematico)
+## 8. Diagrama del Modelo Estrella
 
 ```
-                    +-------------------+
-                    |   dim_tiempo      |
-                    |-------------------|
-                    | sk_tiempo (PK)    |
-                    | fecha             |
-                    | anio              |        +---------------------+
-                    | mes               |        |  dim_tipo_sucursal  |
-                    | dia               |        |---------------------|
-                    | dia_semana        |        | sk_tipo_suc (PK)    |
-                    | numero_dia_semana |        | tipo_sucursal       |
-                    | semana_anio       |        +----------+----------+
-                    +--------+----------+                   |
-                             |                              |
-                             |                              |
-+------------------+         |    +------------------------+|   +-------------------+
-|  dim_producto    |         |    |     fact_precio        ||   |  dim_unidad_medida|
-|------------------|         |    |------------------------|+   |-------------------|
-| sk_producto (PK) +---------+----+ sk_producto (FK)       |    | sk_unidad (PK)    |
-| id_producto_nat  |         |    | sk_comercio (FK)       +----+ unidad_present    |
-| ean              |         +----+ sk_sucursal (FK)       |    | unidad_referencia |
-| descripcion      |              | sk_ubicacion (FK)      |    +-------------------+
-| marca            |         +----+ sk_tiempo (FK)         |
-| categoria_infer  |         |    | sk_tipo_sucursal (FK)  |    +-------------------+
-+------------------+         |    | sk_unidad_medida (FK)  |    |  dim_promocion    |
-                             |    | sk_promocion (FK)      +----+-------------------|
-+------------------+         |    |------------------------|    | sk_promocion (PK) |
-|  dim_comercio    |         |    | precio_lista      [M1] |    | tiene_promo1      |
-|------------------|         |    | precio_referencia [M2] |    | leyenda_promo1    |
-| sk_comercio (PK) +---------+    | precio_promo      [M3] |    | tiene_promo2      |
-| id_comercio_nat  |              | cantidad_present       |    | leyenda_promo2    |
-| id_bandera       |              | cantidad_referencia    |    +-------------------+
-| cuit             |              +-----+------------------+
-| razon_social     |                    |
+                    +------------------+
+                    |   dim_tiempo     |
+                    |------------------|
+                    | sk_tiempo (PK)   |
+                    | fecha            |
+                    | anio             |
+                    | mes              |
+                    | dia              |
+                    +--------+---------+
+                             |
+                             |
++------------------+         |    +-------------------------+
+|  dim_producto    |         |    |      fact_precio        |
+|------------------|         |    |-------------------------|
+| sk_producto (PK) +----+    |    | id_hecho (PK, AUTO)     |
+| ean              |    |    +----+ sk_tiempo (FK)           |
+| descripcion      |    +--------+ sk_producto (FK)          |
+| marca            |         +---+ sk_comercio (FK)          |
+| categoria_infer  |         |   | sk_sucursal (FK)          |
++------------------+         |   | sk_ubicacion (FK)         |
+                             |   |-------------------------|
++------------------+         |   | precio_lista       [M1] |
+|  dim_comercio    |         |   | precio_referencia  [M2] |
+|------------------|         |   | precio_promo       [M3] |
+| sk_comercio (PK) +---------+   | tiene_promo             |
+| razon_social     |              +-----+-------------------+
 | bandera_nombre   |                    |
-| bandera_url      |         +----------+---------+
-+------------------+         |                    |
-                      +------+--------+   +-------+-----------+
-                      | dim_sucursal  |   |  dim_ubicacion    |
-                      |---------------|   |-------------------|
-                      | sk_suc (PK)   |   | sk_ubic (PK)      |
-                      | id_comercio   |   | provincia_codigo  |
-                      | id_bandera    |   | provincia_nombre  |
-                      | id_sucursal   |   | localidad         |
-                      | nombre        |   | barrio            |
-                      | calle         |   | codigo_postal     |
-                      | numero        |   +-------------------+
-                      | latitud       |
-                      | longitud      |
-                      | observaciones |
-                      +---------------+
++------------------+                    |
+                          +-------------+-------------+
+                          |                           |
+                   +------+--------+          +-------+-----------+
+                   | dim_sucursal  |          |  dim_ubicacion    |
+                   |---------------|          |-------------------|
+                   | sk_suc (PK)   |          | sk_ubic (PK)      |
+                   | nombre        |          | provincia_codigo  |
+                   | direccion     |          | provincia_nombre  |
+                   | tipo_sucursal |          | localidad         |
+                   +---------------+          +-------------------+
 ```
 
 ---
@@ -462,9 +344,9 @@ ETAPA 3: CARGA
 
 1. **Precio promedio por provincia:** Agrupar fact_precio por dim_ubicacion.provincia_nombre, calcular AVG(precio_lista).
 2. **Cadena mas barata para un producto:** Filtrar por dim_producto, agrupar por dim_comercio.bandera_nombre, calcular MIN(precio_lista).
-3. **Porcentaje de productos en promocion por cadena:** COUNT(precio_promo IS NOT NULL) / COUNT(*) agrupado por dim_comercio.bandera_nombre.
-4. **Variacion de precios por tipo de sucursal:** AVG(precio_lista) agrupado por dim_tipo_sucursal.tipo_sucursal.
-5. **Drill-down geografico:** Provincia -> Localidad -> Barrio con AVG(precio_referencia).
+3. **Porcentaje de productos en promocion por cadena:** COUNT(tiene_promo = 1) / COUNT(*) agrupado por dim_comercio.bandera_nombre.
+4. **Variacion de precios por tipo de sucursal:** AVG(precio_lista) agrupado por dim_sucursal.tipo_sucursal.
+5. **Drill-down geografico:** Provincia -> Localidad con AVG(precio_referencia).
 6. **Evolucion diaria de precios:** dim_tiempo.fecha como eje temporal, AVG(precio_lista) como medida.
 7. **Top marcas mas caras/baratas por categoria:** dim_producto.categoria_inferida + dim_producto.marca con AVG(precio_referencia).
 

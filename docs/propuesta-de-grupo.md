@@ -1,12 +1,24 @@
-Dataset elegido:
+## Integrantes
 
-SEPA Precios – Secretaría de Comercio (Ministerio de Producción)
+- Carlota Paiva
+- Manuel Krivoy
+- Juan Cruz Rey
+- Franco Tisano
 
-🔗 https://datos.produccion.gob.ar/dataset/sepa-precios
+## Organizacion
 
+Consultora ficticia de analisis comercial y precios.
 
-Tentativamente nuestro enfoque para este dataset será:
+## Dataset elegido
 
-Análisis de precios minoristas en supermercados argentinos para detectar variaciones por región, categoría de producto y cadena comercial.
+SEPA Precios -- Secretaria de Comercio (Ministerio de Produccion)
 
+https://datos.produccion.gob.ar/dataset/sepa-precios
 
+## Enfoque
+
+Analisis de precios minoristas en supermercados argentinos para detectar variaciones por region, categoria de producto y cadena comercial.
+
+## Modelo
+
+Modelo estrella con 5 dimensiones (dim_producto, dim_comercio, dim_sucursal, dim_ubicacion, dim_tiempo) y 1 tabla de hechos (fact_precio). Herramienta OLAP: Power BI.
